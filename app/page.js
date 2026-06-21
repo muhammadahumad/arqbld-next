@@ -1,66 +1,97 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+'use client';
+
+import { useState } from 'react';
 
 export default function Home() {
+  const [width, setWidth] = useState('');
+  const [depth, setDepth] = useState('');
+  const [setback, setSetback] = useState('1.5');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
+
+    try {
+      const response = await fetch('https://arqbld-engine-production.up.railway.app/api/plot-drawing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          width: parseFloat(width),
+          depth: parseFloat(depth),
+          setback: parseFloat(setback),
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        setMessage('Error: ' + errorText);
+        return;
+      }
+
+      // Download the DXF file
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `plot_${width}x${depth}.dxf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      setMessage('Download complete!');
+    } catch (err) {
+      setMessage('Failed to connect to engine. Is it running on port 8000?');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.js file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main style={{ maxWidth: 420, margin: '50px auto', padding: '0 20px', fontFamily: 'system-ui, sans-serif' }}>
+      <h1>ARQBLD Plot Drawing</h1>
+      <p>Enter your plot dimensions and download a professional DXF layout.</p>
+      <form onSubmit={handleSubmit}>
+        <div style={{ marginBottom: 15 }}>
+          <label style={{ display: 'block', marginBottom: 5 }}>Width (meters)</label>
+          <input
+            type="number"
+            step="0.01"
+            value={width}
+            onChange={(e) => setWidth(e.target.value)}
+            required
+            style={{ width: '100%', padding: 8, boxSizing: 'border-box' }}
+          />
         </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <div style={{ marginBottom: 15 }}>
+          <label style={{ display: 'block', marginBottom: 5 }}>Depth (meters)</label>
+          <input
+            type="number"
+            step="0.01"
+            value={depth}
+            onChange={(e) => setDepth(e.target.value)}
+            required
+            style={{ width: '100%', padding: 8, boxSizing: 'border-box' }}
+          />
         </div>
-      </main>
-    </div>
+        <div style={{ marginBottom: 15 }}>
+          <label style={{ display: 'block', marginBottom: 5 }}>Setback (meters)</label>
+          <input
+            type="number"
+            step="0.01"
+            value={setback}
+            onChange={(e) => setSetback(e.target.value)}
+            required
+            style={{ width: '100%', padding: 8, boxSizing: 'border-box' }}
+          />
+        </div>
+        <button type="submit" disabled={loading} style={{ padding: '10px 20px', cursor: 'pointer', fontSize: '1em' }}>
+          {loading ? 'Generating...' : 'Download DXF'}
+        </button>
+      </form>
+      {message && <p style={{ marginTop: 20, color: message.startsWith('Error') ? 'red' : 'green' }}>{message}</p>}
+    </main>
   );
 }
